@@ -61,13 +61,23 @@ python-preference = "only-system"
 - `only-system` ngăn uv tải interpreter về thư mục profile cũng không ghi được. Máy đã có Python 3.11.9, thoả yêu cầu `>= 3.10` của BMAD.
 - Toàn bộ script Python của BMAD chỉ dùng thư viện chuẩn (`tomllib`, `json`, `argparse`…), nên `uv run` không cần mạng và không cần cài package nào.
 
-Kiểm tra nhanh nếu nghi ngờ:
+### Kiểm tra sức khoẻ workspace
+
+Hai lệnh này đã được chạy và xác nhận hoạt động:
 
 ```powershell
+# 1. Cấu hình đọc được, ngôn ngữ đúng
 uv run "D:\hannin\_bmad\scripts\resolve_config.py" --project-root "D:\hannin" --key core
+# → JSON có "communication_language": "Vietnamese", "project_name": "hannin"
+
+# 2. Bộ test của chính BMAD (cần pytest, uv tự tải)
+uv run --with pytest --python 3.11 python -m pytest .agents/skills/bmad-brainstorming/scripts/tests/test_brain.py -q
+# → 33 passed
 ```
 
-Lệnh này phải in ra JSON với `communication_language = "Vietnamese"`.
+Nếu (1) báo `EPERM` hoặc `Access is denied`, nguyên nhân gần như chắc chắn là `uv.toml` bị thiếu/sửa hỏng.
+
+Script runtime của BMAD chỉ dùng thư viện chuẩn nên không cần cài gì. Chỉ khi muốn chạy test nội bộ của BMAD mới cần `--with pytest` như trên.
 
 ## Cập nhật / cài thêm module
 

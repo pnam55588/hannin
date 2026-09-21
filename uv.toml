@@ -1,0 +1,18 @@
+# uv configuration for this workspace.
+#
+# Why this file exists: uv's default cache lives in the user profile
+# (%LOCALAPPDATA%\uv\cache), which the coding-agent sandbox cannot write to.
+# Every BMAD skill shells out to `uv run ...`, so the cache is redirected
+# inside the project to keep those scripts working.
+#
+# The path is relative to this file, so it still resolves when `uv run` is
+# invoked from a subdirectory such as _bmad/scripts.
+#
+# `python-preference = "only-system"` stops uv from downloading a managed
+# interpreter into the same unwritable profile directory. BMAD needs
+# Python >= 3.10 and the system Python 3.11.9 satisfies that.
+#
+# .uv-cache/ is git-ignored. Delete it any time; uv recreates it.
+
+cache-dir = ".uv-cache"
+python-preference = "only-system"

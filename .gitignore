@@ -1,0 +1,17 @@
+# uv cache + ephemeral environments, redirected here by uv.toml because the
+# agent sandbox cannot write to %LOCALAPPDATA%\uv. Also self-ignored by
+# .uv-cache/.gitignore — this is a belt-and-braces guard.
+.uv-cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editor noise
+Thumbs.db
+Desktop.ini
+*.swp
+.idea/
+.vscode/

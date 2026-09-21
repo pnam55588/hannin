@@ -1,0 +1,16 @@
+# BMAD ships every installed file with LF line endings and records a SHA-256
+# hash for each one in _bmad/_config/files-manifest.csv. This machine's git has
+# core.autocrlf=true, which would rewrite those files to CRLF on checkout and
+# invalidate every recorded hash — a fresh clone would look like a corrupted
+# install. Pin LF for all text files.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

@@ -43,3 +43,5 @@ Desktop.ini
 
 # Khoá bí mật - không bao giờ commit
 .secrets/
+
+.vercel

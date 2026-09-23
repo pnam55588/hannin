@@ -10,5 +10,13 @@ const good = await fetch(base + '/api/jobs/backup', { headers: { authorization: 
 const body = await good.text()
 console.log('token dung:', good.status)
 console.log('phan hoi:', body.slice(0, 200).replace(/\s+/g, ' '))
-const report = await fetch(base + '/api/reports/hoc-sinh', { headers: { authorization: 'Bearer ' + secret } })
-console.log('bao cao khi chua dang nhap:', report.status, '(mong doi 401 hoac 307)')
+// Phai dung redirect: 'manual'. Neu de mac dinh, fetch se di theo trang /login va
+// bao 200, trong khi thuc te middleware da chan - mot phep kiem chung sai kieu do
+// lam nguoi doc tuong co lo hong du lieu.
+const report = await fetch(base + '/api/reports/hoc-sinh', { redirect: 'manual' })
+console.log('bao cao khi chua dang nhap:', report.status, '->', report.headers.get('location'), '(mong doi 307 ve /login)')
+const withToken = await fetch(base + '/api/reports/hoc-sinh', {
+  redirect: 'manual',
+  headers: { authorization: 'Bearer ' + secret },
+})
+console.log('bao cao khi co token cron:', withToken.status, '(mong doi 307 - token cron khong mo duoc bao cao)')

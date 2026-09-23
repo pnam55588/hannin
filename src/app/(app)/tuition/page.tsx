@@ -1,6 +1,6 @@
 import { Card, Cell, Empty, Notice, PageHeader, Row, Stat, Table } from '@/components/ui'
 import { PeriodPicker } from '@/components/period-picker'
-import { currentPeriod } from '@/lib/clock'
+import { currentPeriod, periodBounds } from '@/lib/clock'
 import { formatDate, formatPeriod, formatVnd } from '@/lib/format'
 import * as paymentsApi from '@/modules/payments/public'
 import * as tuitionApi from '@/modules/tuition/public'
@@ -19,11 +19,16 @@ export default async function TuitionPage({
       ? params.period
       : currentPeriod()
 
+  // AD-13: khoảng ngày của kỳ phải lấy từ `periodBounds`, không được tự ghép
+  // chuỗi. Tháng 9 chỉ có 30 ngày, nên `${period}-31` là ngày không tồn tại và
+  // Postgres từ chối — màn học phí sẽ hỏng ở mọi tháng thiếu ngày 31.
+  const bounds = periodBounds(period)
+
   const [summary, debtors, income, recentPayments] = await Promise.all([
     tuitionApi.billingSummary(period),
     tuitionApi.debtorsForPeriod(period),
     paymentsApi.incomeInPeriod(period),
-    paymentsApi.listPayments({ from: `${period}-01`, to: `${period}-31` }),
+    paymentsApi.listPayments(bounds),
   ])
 
   return (

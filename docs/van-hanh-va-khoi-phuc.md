@@ -9,11 +9,37 @@ hệ thống đang chạy ở đâu, sao lưu bằng gì, và **đã từng khô
 |---|---|---|
 | Mã nguồn | `github.com/pnam55588/hannin` | private, nhánh `main` |
 | Ứng dụng | `https://hannin-theta.vercel.app` | Vercel project `hannin`, deploy production |
-| Cơ sở dữ liệu | Supabase, vùng `ap-northeast-1` (Tokyo), ref `dzwcvlvslfckcwgaiiia` | gói free |
+| Cơ sở dữ liệu | Supabase Postgres **17.6**, vùng `ap-northeast-1` (Tokyo), ref `dzwcvlvslfckcwgaiiia` | gói free |
 | Sao lưu | bucket `backups` của Supabase Storage | do cron gọi, xem mục 3 |
 
 Chuỗi kết nối dùng **session pooler cổng 5432**, không dùng transaction pooler 6543:
 AD-3 cần transaction tương tác, và migration cần chạy DDL trong một phiên.
+
+## 1.1 Đã kiểm chứng thật trên production
+
+Không phải "chạy được ở máy tôi" — tất cả những điều dưới đây đều kiểm bằng cách
+gọi thật vào site đang chạy:
+
+- **Đăng nhập**: lấy csrf → gửi credentials → 302 về `/dashboard` → trang render 200
+  bằng dữ liệu từ Supabase. Mật khẩu sai không vào được.
+- **Đọc**: 9/9 màn hình trả 200, số tiền hiển thị đúng định dạng `2.000.000`.
+- **Ghi**: gửi form "Thêm lớp" đúng như trình duyệt không bật JS vẫn gửi (multipart
+  kèm `$ACTION_REF`/`$ACTION_KEY`), nhận 200, rồi **đọc lại trên `/classes` thấy lớp
+  mới** — form → Server Action → Postgres → hiển thị thông suốt.
+- **Cổng bảo vệ**: `/dashboard` và `/api/reports/*` khi chưa đăng nhập → 307 về
+  `/login`; `/api/jobs/backup` không token → 401.
+- Postgres 17.6; dev và prod cùng major vì cùng một project.
+
+Các script kiểm chứng nằm trong `scripts/`: `verify-login.mjs`, `verify-screens.mjs`,
+`verify-write.mjs`, `verify-backup.mjs`, `count-rows.mjs`. Chúng là bằng chứng chạy
+lại được, không phải lời kể.
+
+## 1.2 Cổng chặn trước khi nhập dữ liệu THẬT
+
+AD-15 chặn: **không ghi dữ liệu thật vào production trước khi job sao lưu chạy được
+một lần và đã diễn tập phục hồi.** Hiện job sao lưu còn trả 503 vì chưa cấu hình
+Storage, và chưa diễn tập phục hồi lần nào. Nghĩa là: **dữ liệu giả thì được, dữ
+liệu thật thì chưa.** Muốn mở cổng này phải làm xong mục 3 và mục 4.
 
 ## 2. Bản đồ khoá và biến môi trường
 

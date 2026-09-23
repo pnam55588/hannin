@@ -121,7 +121,7 @@ Hướng phụ thuộc là luật, không phải gợi ý: `ui → actions → d
 
 - **Binds:** all
 - **Prevents:** khác biệt hành vi giữa dev và prod; migration chạy trước khi mã tương thích lên; job sao lưu không có đường tồn tại hợp luật; và mất sổ thu mà không có bản phục hồi
-- **Rule:** dev và prod chạy Postgres cùng major version, cùng driver, dev dùng dữ liệu giả. Chuỗi kết nối dùng session pooler cổng 5432 của Supabase — cấm dùng transaction pooler cho đường ghi nhiều dòng, vì nó không hợp với prepared statement trong khi AD-3 cần transaction. Migration theo thứ tự mở rộng rồi thu hẹp: thêm cột và bảng trước, deploy mã, rồi mới bỏ thứ cũ; không tự động chạy ở prod. Job sao lưu là một route tên `/api/jobs/backup`, xác thực bằng một secret trong biến môi trường chứ không bằng phiên người dùng — đây là ngoại lệ được kể tên ở AD-10 và AD-11, không phải cơ chế xác thực thứ hai cho người dùng. Job đổ dữ liệu ra một bản sao nằm ngoài Supabase. Không ghi dữ liệu thật vào prod trước khi job này chạy được một lần và đã diễn tập phục hồi; cả hai điều kiện ghi vào runbook trong `docs/`. Secret chỉ nằm trong biến môi trường, kèm `.env.example` được commit.
+- **Rule:** dev và prod chạy Postgres cùng major version, cùng driver, dev dùng dữ liệu giả. Chuỗi kết nối dùng session pooler cổng 5432 của Supabase — cấm dùng transaction pooler cho đường ghi nhiều dòng, vì nó không hợp với prepared statement trong khi AD-3 cần transaction. Session pooler chỉ cho tổng cộng 15 client, còn Vercel chạy nhiều instance cùng lúc, nên **mỗi instance chỉ được mở đúng một kết nối**; để nhiều hơn thì vài instance là cạn kết nối và triệu chứng không phải là chậm mà là trang trả 500. Migration theo thứ tự mở rộng rồi thu hẹp: thêm cột và bảng trước, deploy mã, rồi mới bỏ thứ cũ; không tự động chạy ở prod. Job sao lưu là một route tên `/api/jobs/backup`, xác thực bằng một secret trong biến môi trường chứ không bằng phiên người dùng — đây là ngoại lệ được kể tên ở AD-10 và AD-11, không phải cơ chế xác thực thứ hai cho người dùng. Job đổ dữ liệu ra một bản sao nằm ngoài Supabase. Không ghi dữ liệu thật vào prod trước khi job này chạy được một lần và đã diễn tập phục hồi; cả hai điều kiện ghi vào runbook trong `docs/`. Secret chỉ nằm trong biến môi trường, kèm `.env.example` được commit.
 
 ### AD-16 — Vòng đời học sinh, và cấm xoá cứng dữ liệu tiền [ADOPTED]
 
@@ -134,7 +134,7 @@ Hướng phụ thuộc là luật, không phải gợi ý: `ui → actions → d
 | Concern | Convention |
 | --- | --- |
 | Naming | Code và schema tiếng Anh, UI tiếng Việt. Bảng snake_case số nhiều, cột snake_case, kiểu và hàm camelCase. Một khái niệm chỉ có đúng một tên trong code. Glossary một-một: buổi = session, kỳ thu = billing period, công nợ = outstanding, học phí = tuition, miễn giảm = discount, điểm danh = attendance, nhận xét = comment, hạn đóng = due date, lớp = class, lịch học = schedule. Đoạn đường dẫn trong mã trùng tên module, còn nhãn tiếng Việt trên sidebar là bản dịch của cùng khái niệm: `dashboard` là Tổng quan, `students` là Học sinh, `classes` là Lịch học, `attendance` là Điểm danh, `tuition` là Học phí và Thu nhập, `comments` là Nhận xét, `reports` là Báo cáo. |
-| Data & formats | Khoá chính là số nguyên tự tăng. Ngày của buổi kiểu date, giờ bắt đầu kiểu time, thời điểm ghi nhận kiểu timestamptz; múi giờ nghiệp vụ cố định Asia/Ho_Chi_Minh. Trạng thái điểm danh là tập giá trị đóng gồm có học và vắng. Trạng thái học sinh là tập giá trị đóng gồm chưa bắt đầu, đang học và đã nghỉ. Server Action trả về kết quả có cờ thành công và một thông điệp tiếng Việt hiển thị được cho người dùng. Dữ liệu seed và demo chỉ là dữ liệu giả. |
+| Data & formats | Khoá chính là số nguyên tự tăng. Ngày của buổi kiểu date, giờ bắt đầu kiểu time, thời điểm ghi nhận kiểu timestamptz; múi giờ nghiệp vụ cố định Asia/Ho_Chi_Minh. Khoảng ngày của một kỳ chỉ được lấy từ `periodBounds`, **cấm ghép chuỗi** dạng `${period}-31`: tháng 9 chỉ có 30 ngày nên cách ghép đó làm màn học phí trả 500, và lỗi chỉ hiện ra khi chạy thật chứ không hiện lúc build. Trạng thái điểm danh là tập giá trị đóng gồm có học và vắng. Trạng thái học sinh là tập giá trị đóng gồm chưa bắt đầu, đang học và đã nghỉ. Server Action trả về kết quả có cờ thành công và một thông điệp tiếng Việt hiển thị được cho người dùng. Dữ liệu seed và demo chỉ là dữ liệu giả. |
 | UI & nội dung | Tiếng Việt có dấu là ngôn ngữ duy nhất của sản phẩm, không có màn hình tiếng Anh. Thao tác thường dùng — điểm danh, thêm học sinh, ghi một khoản thu — phải xong trong một màn hình, cấm wizard nhiều bước, vì người dùng không phải dân kỹ thuật. Giọng điệu ấm áp, hướng tới phụ huynh; lời chào và nhãn lấy từ `brand.md`, tagline `LEARN · GROW · SUCCEED` chỉ dùng ở màn đăng nhập và khu vực thương hiệu, không rắc vào bảng dữ liệu. |
 | State & cross-cutting | Không giữ state dữ liệu máy chủ ở client; sau mutation gọi `revalidatePath`. TypeScript bật chế độ nghiêm ngặt và cấm `any` ngầm định; kiểu ở biên do schema suy ra chứ không khai tay hai lần. Lỗi được ghi log kèm mã lỗi. Cấu hình chỉ qua biến môi trường. Mọi thao tác ghi nhiều bản ghi trong một lượt — điểm danh cả lớp, ghi một khoản thu kèm điều chỉnh — nằm trong một transaction, và driver phải là loại hỗ trợ transaction tương tác. |
 
@@ -144,37 +144,37 @@ Hướng phụ thuộc là luật, không phải gợi ý: `ui → actions → d
 | --- | --- | --- |
 | Node.js | 22.23.2 qua nvm | đã kiểm tra trên máy này |
 | pnpm | 12.3.4, npm 10.9.8 | đã kiểm tra trên máy này |
-| Next.js | 16.3.6 | **đã xác minh trên registry** ngày 2026-09-23; bản trong cache cục bộ là 15.4.1 và đã cũ. Ở major 16 thì `cookies()`, `headers()` và `params` là bất đồng bộ, chạm thẳng `requireUser()` ở AD-10 |
+| Next.js | 16.3.5, ghim | **đã xác minh trên registry** ngày 2026-09-23. Bản 16.3.6 mới hơn bị chính sách `minimumReleaseAge` mặc định của pnpm 12 chặn (phát hành trong vòng 24 giờ), nên ghim 16.3.5; chính sách không bị tắt. Ở major 16 thì `cookies()`, `headers()` và `params` là bất đồng bộ, chạm thẳng `requireUser()` ở AD-10 |
 | React và React DOM | 19.3.0 | đã xác minh trên registry |
 | TypeScript | 7.0.2 | đã xác minh trên registry; dùng chế độ nghiêm ngặt |
 | Zod | 4.6.5 | đã xác minh trên registry |
 | drizzle-orm | 0.45.3 | đã xác minh trên registry |
 | drizzle-kit | 0.31.11 | đã xác minh trên registry |
 | Driver Postgres | `postgres` (postgres.js) 3.4.9 | đã xác minh trên registry; dùng chuỗi session pooler cổng 5432 của Supabase, giống nhau ở dev và prod |
-| PostgreSQL trên Supabase | major chốt khi tạo project | Postgres của Supabase, region Singapore; máy chưa có Postgres cục bộ nên dev chạy Docker cùng major. **Supabase bậc miễn phí không có backup tự động**, nên job sao lưu ở AD-15 là bắt buộc chứ không phải tuỳ chọn |
+| PostgreSQL trên Supabase | **17.6**, region `ap-northeast-1` (Tokyo) | **đã xác minh trên project thật**: `select version()` trả 17.6. Project nằm ở **Tokyo**, không phải Singapore như dự kiến ban đầu — host pooler phải khớp region, lệch region thì báo `tenant/user not found` chứ không báo sai mật khẩu. Múi giờ database là UTC, nên mọi mốc ngày đều do AD-13 quyết định. **Supabase bậc miễn phí không có backup tự động**, nên job sao lưu ở AD-15 là bắt buộc chứ không phải tuỳ chọn |
 | Auth.js | `next-auth` 5.0.0-beta.32, ghim chính xác | đã xác minh trên registry: nhánh ổn định là 4.24.15, còn v5 vẫn beta. Chọn v5 vì API dành cho App Router và cấu hình Edge mà AD-10 cần; ghim đúng bản beta để tái lập được, và phương án lùi đã ghi ở mục Deferred |
 | bcryptjs | 3.0.3 | đã xác minh trên registry; dùng băm mật khẩu |
 | exceljs | 4.4.0 | đã xác minh trên registry: **đây vẫn là bản mới nhất, phát hành 2023** — gói không còn được bảo trì. Chỉ dùng để ghi file nên rủi ro thấp |
 | Tailwind CSS | 4.3.3 kèm `@tailwindcss/postcss` 4.3.3 | đã xác minh trên registry; major 4 khai token theo hướng CSS-first nên AD-14 phải làm theo cách đó |
 | Vitest | 5.0.1 | đã xác minh trên registry |
-| ESLint | 10.11.0 kèm `eslint-config-next` 16.3.6 | đã xác minh trên registry |
+| ESLint | 10.11.0 kèm `eslint-config-next` 16.3.5 | đã xác minh trên registry; hạ cùng nhịp với Next.js vì cùng lý do chính sách 24 giờ |
 | tsx | 4.23.15 | đã xác minh trên registry; dùng chạy script migration và seed |
-| Vercel | nền tảng triển khai | múi giờ mặc định của runtime **chưa xác minh** — AD-13 được viết để đúng bất kể mặc định là gì |
+| Vercel | nền tảng triển khai | múi giờ mặc định của runtime **không còn là rủi ro**: AD-13 tính ngày nghiệp vụ tường minh theo `Asia/Ho_Chi_Minh` và database để UTC, nên không mã nào phụ thuộc múi giờ của máy chạy |
 | shadcn/ui | không dùng | **đã bỏ**: không phục vụ AD nào, và Tailwind 4 đủ cho quy mô này |
 
-Khác với lần soạn đầu, các phiên bản ở bảng này **đã được xác minh thật** bằng truy vấn registry ngày 2026-09-23, và sẽ được ghim chính xác kèm lockfile trong repo. Chỉ còn hai điều chưa xác minh được: múi giờ mặc định của runtime Vercel, và major Postgres của project Supabase — cả hai đều kiểm được ngay khi có project.
+Khác với lần soạn đầu, các phiên bản ở bảng này **đã được xác minh thật** bằng truy vấn registry ngày 2026-09-23, và được ghim chính xác kèm lockfile trong repo. Hai điều để ngỏ ở bản trước đã kiểm xong khi có project thật: major Postgres của Supabase là **17.6**, và múi giờ runtime không ảnh hưởng vì AD-13 cố định múi giờ nghiệp vụ. Ứng dụng đã chạy thật ở production; phần kiểm chứng ghi trong `docs/van-hanh-va-khoi-phuc.md`.
 
 ## Structural Seed
 
 ```mermaid
 graph LR
   B["Trình duyệt chủ lớp"] -->|HTTPS| V["Vercel — Next.js: Server Actions, Auth.js, 3 route Handler"]
-  V -->|session pooler 5432| N[("Supabase Postgres — Singapore")]
+  V -->|session pooler 5432| N[("Supabase Postgres 17.6 — Tokyo")]
   G["GitHub nhánh main"] -->|deploy| V
   C["Vercel Cron"] -->|secret trong env| J["/api/jobs/backup"]
   J --> N
   J --> S["Bản sao lưu ngoài Supabase"]
-  D["Dev: Postgres trong Docker"] -.->|cùng major và cùng driver| N
+  D["Dev: trỏ thẳng vào project Supabase khi máy chưa có Postgres cục bộ"] -.->|cùng major và cùng driver| N
 ```
 
 ```text

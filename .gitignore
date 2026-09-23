@@ -45,3 +45,4 @@ Desktop.ini
 .secrets/
 
 .vercel
+.env*

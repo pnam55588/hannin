@@ -1,0 +1,44 @@
+@import 'tailwindcss';
+
+/*
+ * AD-14: token thương hiệu được khai ĐÚNG MỘT LẦN ở đây.
+ * Cấm hardcode mã màu trong component — mọi màu đi qua các biến này.
+ * Nguồn: _bmad-output/specs/spec-hannin/brand.md
+ */
+@theme {
+  --color-navy: #0d1f3d;
+  --color-navy-700: #16305c;
+  --color-navy-500: #2c4a7c;
+  --color-navy-100: #e8ecf3;
+
+  --color-coral: #ff6b6b;
+  --color-coral-700: #e04f4f;
+  --color-coral-100: #ffe9e9;
+
+  --color-ink: #101828;
+  --color-muted: #667085;
+  --color-line: #e4e7ec;
+  --color-canvas: #f6f7f9;
+  --color-surface: #ffffff;
+
+  --font-sans:
+    'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* AD-14: navy giữ diện tích lớn, coral chỉ để nhấn. */
+:focus-visible {
+  outline: 2px solid var(--color-coral);
+  outline-offset: 2px;
+}

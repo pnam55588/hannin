@@ -1,0 +1,6 @@
+# pnpm 12 dùng `allowBuilds`, không còn `onlyBuiltDependencies`.
+# esbuild cần script build để lấy binary nền tảng; thiếu nó thì vitest không chạy.
+# unrs-resolver là phụ thuộc của eslint-config-next, cũng cần build.
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true

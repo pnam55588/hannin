@@ -10,9 +10,36 @@ __pycache__/
 .venv/
 venv/
 
+# Node — cache và store giữ trong workspace, cùng lý do với uv.toml, xem .npmrc
+node_modules/
+.pnpm-store/
+.npm-cache/
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+build/
+next-env.d.ts
+*.tsbuildinfo
+
+# Test
+coverage/
+
 # OS / editor noise
 Thumbs.db
 Desktop.ini
 *.swp
 .idea/
 .vscode/
+
+# Vercel
+.vercel/
+
+# Biến môi trường — chỉ commit .env.example
+.env
+.env.local
+.env.*.local
+
+# Khoá bí mật - không bao giờ commit
+.secrets/

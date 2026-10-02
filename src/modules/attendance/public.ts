@@ -20,6 +20,9 @@ import {
   type AttendanceStatus,
 } from '@/modules/attendance/domain/attendance'
 import * as queries from '@/modules/attendance/data/queries'
+import { todayCounts } from '@/modules/attendance/domain/today'
+
+export { todayCounts }
 
 export type SessionAttendance = {
   classId: number
@@ -121,11 +124,13 @@ export async function sessionsForDate(date: string): Promise<SessionAttendance[]
   const sessions = await classesApi.sessionsForBetween(date, date)
   const rows = await queries.selectBetween(date, date)
   const classList = await classesApi.listClasses()
+  const students = await listStudents()
   const nameById = new Map(classList.map((klass) => [klass.id, klass.name]))
 
   const results: SessionAttendance[] = []
   for (const session of sessions) {
-    const roster = await expectedStudents(session.classId, date)
+    const roster = students.filter((student) => student.classId === session.classId &&
+      student.startedOn <= date && (student.leftOn === null || student.leftOn >= date))
     const sessionRows = rowsOfSession(rows, session)
     const byStudent = new Map(sessionRows.map((row) => [row.studentId, row.status]))
     results.push({
@@ -146,30 +151,39 @@ export async function sessionsForDate(date: string): Promise<SessionAttendance[]
   return results
 }
 
+/** AD-12/17: tỉ lệ của mọi lớp trong kỳ từ một lần đọc lịch, sổ điểm danh và danh sách học sinh. */
+export async function attendanceStatsForPeriod(period: string): Promise<Map<number, AttendanceRatio & { presentTotal: number; markedTotal: number }>> {
+  const { from, to } = periodBounds(period)
+  const sessions = await classesApi.sessionsForPeriod(period)
+  const rows = await queries.selectBetween(from, to)
+  const students = await listStudents()
+  const result = new Map<number, AttendanceRatio & { presentTotal: number; markedTotal: number }>()
+  for (const session of sessions) {
+    const ratio = result.get(session.classId) ?? { complete: 0, total: 0, presentTotal: 0, markedTotal: 0 }
+    ratio.total += 1
+    const expectedIds = students.filter((student) => student.classId === session.classId &&
+      student.startedOn <= session.date &&
+      (student.leftOn === null || student.leftOn >= session.date)).map((student) => student.id)
+    const sessionRows = rowsOfSession(rows, session)
+    if (isSessionComplete(sessionRows, session, expectedIds)) ratio.complete += 1
+    const expected = new Set(expectedIds)
+    ratio.markedTotal += sessionRows.filter((row) => expected.has(row.studentId)).length
+    ratio.presentTotal += sessionRows.filter((row) => expected.has(row.studentId) && row.status === 'present').length
+    result.set(session.classId, ratio)
+  }
+  return result
+}
+
+export async function ratiosForPeriod(period: string): Promise<Map<number, AttendanceRatio>> {
+  return attendanceStatsForPeriod(period)
+}
+
 /** AD-12: chỉ số "đã điểm danh bao nhiêu buổi" do hàm này sở hữu. */
 export async function ratioForClassInPeriod(
   classId: number,
   period: string,
 ): Promise<AttendanceRatio> {
-  const { from, to } = periodBounds(period)
-  const sessions = await classesApi.sessionsForClassBetween(classId, from, to)
-  const rows = await queries.selectForClassBetween(classId, from, to)
-  const roster = await listStudents({ classId })
-
-  // Mẫu số là số buổi, tử số là số buổi đã ghi đủ. Một buổi được tính là xong
-  // khi mọi học sinh của lớp tại buổi đó đều có dòng, kể cả dòng Vắng.
-  let complete = 0
-  for (const session of sessions) {
-    const expected = roster.filter(
-      (student) =>
-        student.startedOn <= session.date &&
-        (student.leftOn === null || student.leftOn >= session.date),
-    )
-    if (isSessionComplete(rowsOfSession(rows, session), session, expected.map((s) => s.id))) {
-      complete += 1
-    }
-  }
-  return { complete, total: sessions.length }
+  return (await ratiosForPeriod(period)).get(classId) ?? { complete: 0, total: 0 }
 }
 
 /** Số buổi học sinh có mặt trên tổng số buổi đã điểm danh của em. */

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireUser } from '@/lib/auth'
-import { createStudent, setStudentLeftOn, updateStudent } from '@/modules/students/public'
+import { createStudent, getStudent, setStudentLeftOn, updateStudent } from '@/modules/students/public'
 
 export type ActionState = { ok: boolean; error: string | null }
 
@@ -72,6 +72,12 @@ export async function updateStudentAction(
     return { ok: false, error: 'Ngày nghỉ phải sau ngày bắt đầu' }
   }
 
+  const existing = await getStudent(parsed.data.id)
+  if (existing === null) return { ok: false, error: 'Không tìm thấy học sinh' }
+  if (existing.leftOn !== null && parsed.data.leftOn !== existing.leftOn) {
+    return { ok: false, error: 'Ngày nghỉ đã ghi không thể thay đổi. Lịch sử học phí cần được giữ nguyên.' }
+  }
+
   try {
     await updateStudent(parsed.data)
   } catch {
@@ -100,26 +106,16 @@ export async function endStudentAction(
     return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ' }
   }
 
+  const student = await getStudent(parsed.data.id)
+  if (student === null) return { ok: false, error: 'Không tìm thấy học sinh' }
+  if (student.leftOn !== null) return { ok: false, error: 'Ngày nghỉ đã được ghi và không thể thay đổi' }
+  if (parsed.data.leftOn < student.startedOn) {
+    return { ok: false, error: 'Ngày nghỉ phải sau ngày bắt đầu' }
+  }
+
   await setStudentLeftOn(parsed.data.id, parsed.data.leftOn)
   revalidatePath('/students')
   revalidatePath(`/students/${parsed.data.id}`)
   revalidatePath('/tuition')
-  return { ok: true, error: null }
-}
-
-export async function reopenStudentAction(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  await requireUser()
-  const parsed = z
-    .object({ id: z.coerce.number().int().positive() })
-    .safeParse({ id: formData.get('id') })
-
-  if (!parsed.success) return { ok: false, error: 'Dữ liệu không hợp lệ' }
-
-  await setStudentLeftOn(parsed.data.id, null)
-  revalidatePath('/students')
-  revalidatePath(`/students/${parsed.data.id}`)
   return { ok: true, error: null }
 }

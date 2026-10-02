@@ -24,12 +24,12 @@ export default async function TuitionPage({
   // Postgres từ chối — màn học phí sẽ hỏng ở mọi tháng thiếu ngày 31.
   const bounds = periodBounds(period)
 
-  const [summary, debtors, income, recentPayments] = await Promise.all([
-    tuitionApi.billingSummary(period),
-    tuitionApi.debtorsForPeriod(period),
+  const [billing, income, recentPayments] = await Promise.all([
+    tuitionApi.billingForPeriod(period),
     paymentsApi.incomeInPeriod(period),
     paymentsApi.listPayments(bounds),
   ])
+  const { summary, debtors } = billing
 
   return (
     <>

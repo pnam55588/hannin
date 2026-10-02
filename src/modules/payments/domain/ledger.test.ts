@@ -54,6 +54,12 @@ describe('AD-8 — thu nhập theo ngày thu', () => {
 })
 
 describe('AD-9 — danh sách nợ của một kỳ', () => {
+  it('giữ học sinh đã nghỉ còn nợ nếu từng học trong kỳ', () => {
+    const retired = { studentId: 9, due: 1_800_000, leftOn: '2026-09-10' }
+    const debtors = debtorsForPeriod([], '2026-09', [retired])
+    expect(debtors.map((row) => row.studentId)).toEqual([9])
+    expect(debtors[0]?.outstanding).toBe(1_800_000)
+  })
   it('chỉ gồm người còn thiếu, sắp theo số còn thiếu giảm dần', () => {
     const debtors = debtorsForPeriod(
       payments,

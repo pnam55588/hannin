@@ -13,12 +13,12 @@ export function PageHeader({
   actions?: React.ReactNode
 }) {
   return (
-    <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <header className="mb-6 flex min-w-0 flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-xl font-bold text-navy">{title}</h1>
+        <h1 className="text-[22px] font-bold text-navy">{title}</h1>
         {subtitle !== undefined && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
       </div>
-      {actions !== undefined && <div className="flex items-center gap-2">{actions}</div>}
+      {actions !== undefined && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
   )
 }
@@ -37,11 +37,11 @@ export function Card({
   className?: string
 }) {
   return (
-    <section className={`rounded-xl border border-line bg-surface p-5 ${className}`}>
+    <section className={`min-w-0 rounded-[18px] border border-line bg-surface p-5 shadow-sm ${className}`}>
       {(title !== undefined || actions !== undefined) && (
-        <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
           <div>
-            {title !== undefined && <h2 className="text-sm font-semibold text-navy">{title}</h2>}
+            {title !== undefined && <h2 className="text-base font-bold text-navy">{title}</h2>}
             {hint !== undefined && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
           </div>
           {actions}
@@ -57,19 +57,26 @@ export function Stat({
   value,
   hint,
   tone = 'navy',
+  icon,
 }: {
   label: string
   value: string
-  hint?: string
-  tone?: 'navy' | 'coral' | 'muted'
+  hint?: React.ReactNode
+  tone?: 'navy' | 'coral' | 'muted' | 'mint' | 'butter' | 'lavender'
+  icon?: 'income' | 'calendar' | 'attendance'
 }) {
-  const color =
-    tone === 'coral' ? 'text-coral-700' : tone === 'muted' ? 'text-muted' : 'text-navy'
+  const background = { navy: 'bg-surface', coral: 'bg-coral-100', muted: 'bg-surface', mint: 'bg-mint-tint', butter: 'bg-butter-tint', lavender: 'bg-lavender-tint' }[tone]
+  const iconShape = icon === 'income'
+    ? <><path d="M4 20V4m0 16h16M8 16v-5m5 5V7m5 9v-8" /></>
+    : icon === 'calendar'
+      ? <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4m10-4v4M3 10h18" /></>
+      : <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="m7 13 3 3 6-7" /></>
   return (
-    <div className="rounded-xl border border-line bg-surface px-4 py-3">
-      <p className="text-xs font-medium text-muted">{label}</p>
-      <p className={`mt-1 text-lg font-bold ${color}`}>{value}</p>
-      {hint !== undefined && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
+    <div className={`min-w-0 rounded-[18px] border border-line px-5 py-4 ${background}`}>
+      {icon && <span aria-hidden="true" className="mb-3 inline-flex size-9 items-center justify-center rounded-full bg-white text-navy"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{iconShape}</svg></span>}
+      <p className="text-sm font-semibold text-muted">{label}</p>
+      <p className="mt-1 text-2xl font-bold tabular-nums text-navy lg:text-lg xl:text-2xl">{value}</p>
+      {hint !== undefined && <p className="mt-1 text-sm text-muted">{hint}</p>}
     </div>
   )
 }
@@ -85,12 +92,12 @@ export function Table({
 }) {
   const hasRows = Array.isArray(children) ? children.length > 0 : children !== null
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-sm">
+    <div className="table-viewport" role="region" aria-label="Bảng dữ liệu, kéo ngang để xem thêm cột" tabIndex={0}>
+      <table className="w-full min-w-max border-collapse text-sm">
         <thead>
           <tr className="border-b border-line text-left text-xs font-semibold uppercase tracking-wide text-muted">
             {head.map((label) => (
-              <th key={label} className="px-3 py-2">
+              <th key={label} scope="col" className="px-3 py-2">
                 {label}
               </th>
             ))}
@@ -135,11 +142,11 @@ export function Badge({
 }) {
   const styles =
     tone === 'ok'
-      ? 'bg-navy-100 text-navy'
+      ? 'bg-success-tint text-success-ink'
       : tone === 'warn'
-        ? 'bg-coral-100 text-coral-700'
+        ? 'bg-butter-tint text-navy'
         : tone === 'bad'
-          ? 'bg-coral text-white'
+          ? 'bg-coral-100 text-coral-700'
           : 'bg-canvas text-muted'
   return (
     <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${styles}`}>

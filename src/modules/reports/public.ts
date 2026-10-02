@@ -10,7 +10,6 @@ import { periodBounds } from '@/lib/clock'
 import * as attendanceApi from '@/modules/attendance/public'
 import * as classesApi from '@/modules/classes/public'
 import * as paymentsApi from '@/modules/payments/public'
-import * as studentsApi from '@/modules/students/public'
 import * as tuitionApi from '@/modules/tuition/public'
 
 export type ReportKind = 'income' | 'debt' | 'attendance' | 'students'
@@ -74,8 +73,7 @@ async function incomeReport(fromPeriod: string, toPeriod: string): Promise<Repor
 
 /** Báo cáo công nợ của MỘT kỳ (AD-9), do module học phí sở hữu. */
 async function debtReport(period: string): Promise<ReportTable> {
-  const debtors = await tuitionApi.debtorsForPeriod(period)
-  const summary = await tuitionApi.billingSummary(period)
+  const { debtors, summary } = await tuitionApi.billingForPeriod(period)
 
   const rows = debtors.map((debtor) => ({
     student: debtor.student.fullName,
@@ -115,26 +113,18 @@ async function debtReport(period: string): Promise<ReportTable> {
 /** Báo cáo điểm danh của một kỳ, do module điểm danh sở hữu. */
 async function attendanceReport(period: string): Promise<ReportTable> {
   const classList = await classesApi.listClasses()
+  const stats = await attendanceApi.attendanceStatsForPeriod(period)
   const rows: Record<string, string | number>[] = []
 
   for (const klass of classList) {
-    const ratio = await attendanceApi.ratioForClassInPeriod(klass.id, period)
-    const sessions = await classesApi.sessionsForClassInPeriod(klass.id, period)
-    const students = await studentsApi.studentsOfClass(klass.id)
-    let presentTotal = 0
-    let markedTotal = 0
-    for (const student of students) {
-      const stats = await attendanceApi.attendanceForStudentInPeriod(student.id, period)
-      presentTotal += stats.present
-      markedTotal += stats.total
-    }
+    const ratio = stats.get(klass.id) ?? { complete: 0, total: 0, presentTotal: 0, markedTotal: 0 }
     rows.push({
       className: klass.name,
-      sessions: sessions.length,
+      sessions: ratio.total,
       marked: ratio.complete,
-      rate: sessions.length === 0 ? '—' : `${Math.round((ratio.complete / sessions.length) * 100)}%`,
-      presentTotal,
-      markedTotal,
+      rate: ratio.total === 0 ? '—' : `${Math.round((ratio.complete / ratio.total) * 100)}%`,
+      presentTotal: ratio.presentTotal,
+      markedTotal: ratio.markedTotal,
     })
   }
 

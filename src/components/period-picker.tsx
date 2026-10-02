@@ -33,7 +33,7 @@ export function PeriodPicker({
       <button
         type="button"
         onClick={() => go(shiftPeriod(value, -1))}
-        className="rounded-lg border border-line bg-surface px-2 py-1 text-sm hover:border-navy"
+        className="min-h-11 min-w-11 rounded-lg border border-line bg-surface px-2 text-sm hover:border-navy"
         aria-label="Kỳ trước"
       >
         ‹
@@ -41,7 +41,7 @@ export function PeriodPicker({
       <select
         value={value}
         onChange={(event) => go(event.target.value)}
-        className="rounded-lg border border-line bg-surface px-2 py-1 text-sm"
+        className="min-h-11 rounded-lg border border-line bg-surface px-2 text-sm"
       >
         {options.map((period) => (
           <option key={period} value={period}>
@@ -52,7 +52,7 @@ export function PeriodPicker({
       <button
         type="button"
         onClick={() => go(shiftPeriod(value, 1))}
-        className="rounded-lg border border-line bg-surface px-2 py-1 text-sm hover:border-navy"
+        className="min-h-11 min-w-11 rounded-lg border border-line bg-surface px-2 text-sm hover:border-navy"
         aria-label="Kỳ sau"
       >
         ›
@@ -86,7 +86,7 @@ export function DatePicker({
           params.set(paramName, event.target.value)
           router.push(`${pathname}?${params.toString()}`)
         }}
-        className="rounded-lg border border-line bg-surface px-2 py-1 text-sm"
+        className="min-h-11 rounded-lg border border-line bg-surface px-2 text-sm"
       />
     </div>
   )

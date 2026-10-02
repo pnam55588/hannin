@@ -1,50 +1,52 @@
 import Link from 'next/link'
 import { Badge, Card, Cell, Empty, Notice, PageHeader, Row, Stat, Table } from '@/components/ui'
 import { businessToday, currentPeriod } from '@/lib/clock'
-import { formatDate, formatPeriod, formatRatio, formatTime, formatVnd } from '@/lib/format'
+import { formatDate, formatPercentChange, formatPeriod, formatRatio, formatTime, formatVnd } from '@/lib/format'
 import * as attendanceApi from '@/modules/attendance/public'
-import * as classesApi from '@/modules/classes/public'
 import * as commentsApi from '@/modules/comments/public'
 import * as paymentsApi from '@/modules/payments/public'
-import * as studentsApi from '@/modules/students/public'
 import * as tuitionApi from '@/modules/tuition/public'
 
 export const dynamic = 'force-dynamic'
 
+const clock = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+
 export default async function DashboardPage() {
-  const today = businessToday()
-  const period = currentPeriod()
+  const now = new Date()
+  const today = businessToday(now)
+  const period = currentPeriod(now)
 
   // CAP-1: câu trả lời cho "hôm nay dạy gì" phải là thứ đầu tiên nhìn thấy.
-  const sessions = await attendanceApi.sessionsForDate(today)
-  const summary = await tuitionApi.billingSummary(period)
-  const income = await paymentsApi.incomeInPeriod(period)
-  const roster = await studentsApi.listStudents()
-  const activeCount = roster.filter((student) => student.status === 'active').length
-  const debtors = await tuitionApi.debtorsForPeriod(period)
+  const [sessions, billing, income, recentComments] = await Promise.all([
+    attendanceApi.sessionsForDate(today),
+    tuitionApi.billingForPeriod(period),
+    paymentsApi.incomeComparisons(today),
+    commentsApi.recentComments(5),
+  ])
+  const { summary, debtors } = billing
   const overdue = debtors.filter(
     (debtor) => debtor.dueDate !== null && debtor.dueDate < today,
   )
-  const recentComments = await commentsApi.recentComments(5)
 
-  const classList = await classesApi.listClasses()
-  let sessionsTotal = 0
-  let sessionsMarked = 0
-  for (const klass of classList) {
-    const ratio = await attendanceApi.ratioForClassInPeriod(klass.id, period)
-    sessionsTotal += ratio.total
-    sessionsMarked += ratio.complete
-  }
+  const counts = attendanceApi.todayCounts(sessions, clock.format(now))
 
   return (
     <>
       <PageHeader
-        title={`Tổng quan — ${formatDate(today)}`}
-        subtitle={`Kỳ đang xem: ${formatPeriod(period)}`}
+        title="Chào bạn!"
+        subtitle={`Chúc một ngày làm việc thật hiệu quả! · ${formatDate(today)}`}
+        actions={<Link href="/students#them-hoc-sinh" className="action-accent">+ Thêm học sinh</Link>}
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="Hôm nay học gì" className="lg:col-span-2">
+      <div className="metric-grid mb-6">
+        <Stat label="Thu nhập tháng này" value={formatVnd(income.month)} hint={`${income.previousMonth === 0 ? 'Mới' : formatPercentChange(income.month, income.previousMonth)} so với tháng trước`} tone="mint" icon="income" />
+        <Stat label="Thu nhập năm nay" value={formatVnd(income.year)} hint={`${income.previousYear === 0 ? 'Mới' : formatPercentChange(income.year, income.previousYear)} so với năm trước`} tone="butter" icon="income" />
+        <Stat label="Buổi học hôm nay" value={formatRatio(counts.started, counts.total)} hint={<Link href={`/classes?period=${period}`}>Xem lịch tháng</Link>} tone="lavender" icon="calendar" />
+        <Stat label="Đã điểm danh hôm nay" value={formatRatio(counts.marked, counts.started)} hint={<>{counts.started === 0 ? 'Chưa tới giờ học · ' : ''}<Link href={`/attendance?date=${today}`}>Điểm danh</Link></>} tone="coral" icon="attendance" />
+      </div>
+
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <Card title="Lịch học hôm nay">
           {sessions.length === 0 ? (
             <Empty>Hôm nay không có buổi học nào theo lịch.</Empty>
           ) : (
@@ -52,7 +54,7 @@ export default async function DashboardPage() {
               {sessions.map((session) => (
                 <li
                   key={`${session.classId}-${session.startTime}`}
-                  className="flex items-center justify-between py-3"
+                  className="flex flex-wrap items-center justify-between gap-2 py-3"
                 >
                   <div>
                     <p className="text-sm font-semibold text-navy">
@@ -62,7 +64,7 @@ export default async function DashboardPage() {
                       {session.expectedCount} học sinh · {session.presentCount} có mặt
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     {session.complete ? (
                       <Badge tone="ok">Đã điểm danh</Badge>
                     ) : (
@@ -87,7 +89,7 @@ export default async function DashboardPage() {
           ) : (
             <ul className="space-y-2">
               {overdue.slice(0, 6).map((debtor) => (
-                <li key={debtor.student.id} className="flex items-center justify-between text-sm">
+                <li key={debtor.student.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <Link
                     href={`/students/${debtor.student.id}`}
                     className="font-medium text-navy hover:underline"
@@ -105,38 +107,23 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Học sinh đang học" value={String(activeCount)} hint={`${roster.length} hồ sơ`} />
-        <Stat
-          label="Phải thu kỳ này"
-          value={formatVnd(summary.expected)}
-          hint={`${summary.settledCount}/${summary.studentCount} em đã đóng đủ`}
-        />
-        <Stat
-          label="Còn thiếu kỳ này"
-          value={formatVnd(summary.outstanding)}
-          tone={summary.outstanding > 0 ? 'coral' : 'navy'}
-          hint={`${debtors.length} học sinh`}
-        />
-        <Stat
-          label="Thu nhập thực nhận"
-          value={formatVnd(income)}
-          hint={`Tiền vào trong ${formatPeriod(period)}`}
-        />
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <Stat label="Phải thu kỳ này" value={formatVnd(summary.expected)} hint={`${summary.settledCount}/${summary.studentCount} em đã đóng đủ`} />
+        <Stat label="Còn thiếu kỳ này" value={formatVnd(summary.outstanding)} hint={`${debtors.length} học sinh`} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card
-          title="Điểm danh trong kỳ"
+          title="Điểm danh hôm nay"
           hint="Một buổi tính là xong khi mọi học sinh đều có dòng, kể cả dòng Vắng"
         >
           <p className="text-2xl font-bold text-navy">
-            {formatRatio(sessionsMarked, sessionsTotal)}
+            {formatRatio(counts.marked, counts.started)}
           </p>
           <p className="mt-1 text-xs text-muted">
-            {sessionsTotal === 0
-              ? 'Chưa có buổi nào trong kỳ này.'
-              : `Còn ${Math.max(0, sessionsTotal - sessionsMarked)} buổi chưa điểm danh.`}
+            {counts.started === 0
+              ? 'Chưa tới giờ học.'
+              : `Còn ${counts.started - counts.marked} buổi chưa điểm danh hôm nay.`}
           </p>
           {summary.missingRateCount > 0 && (
             <div className="mt-3">

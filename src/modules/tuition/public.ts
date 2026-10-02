@@ -92,10 +92,11 @@ export async function chargesForPeriod(period: string): Promise<StudentCharge[]>
   )
   if (enrolled.length === 0) return []
 
-  const classIds = [...new Set(enrolled.map((student) => student.classId))]
   const sessionsByClass = new Map<number, { date: string }[]>()
-  for (const classId of classIds) {
-    sessionsByClass.set(classId, await classesApi.sessionsForClassInPeriod(classId, period))
+  for (const session of await classesApi.sessionsForPeriod(period)) {
+    const bucket = sessionsByClass.get(session.classId)
+    if (bucket === undefined) sessionsByClass.set(session.classId, [session])
+    else bucket.push(session)
   }
 
   const allRates = await queries.selectRates()
@@ -179,7 +180,10 @@ export type BillingSummary = {
 export async function billingSummary(period: string): Promise<BillingSummary> {
   const charges = await chargesForPeriod(period)
   const paid = await paymentsApi.paidByStudentForPeriod(period)
+  return summarizeCharges(period, charges, paid)
+}
 
+function summarizeCharges(period: string, charges: StudentCharge[], paid: Map<number, number>): BillingSummary {
   let expected = 0
   let collected = 0
   let settledCount = 0
@@ -209,11 +213,21 @@ export async function billingSummary(period: string): Promise<BillingSummary> {
 
 export type DebtorRow = StudentCharge & { paid: number; outstanding: number }
 
+/** Một bộ dữ liệu gốc cho hai chỉ số cùng xuất hiện trong một request. */
+export async function billingForPeriod(period: string): Promise<{ summary: BillingSummary; debtors: DebtorRow[] }> {
+  const charges = await chargesForPeriod(period)
+  const paid = await paymentsApi.paidByStudentForPeriod(period)
+  return { summary: summarizeCharges(period, charges, paid), debtors: debtRows(charges, paid) }
+}
+
 /** Danh sách nợ của một kỳ — chỉ gồm người còn thiếu tiền. */
 export async function debtorsForPeriod(period: string): Promise<DebtorRow[]> {
   const charges = await chargesForPeriod(period)
   const paid = await paymentsApi.paidByStudentForPeriod(period)
+  return debtRows(charges, paid)
+}
 
+function debtRows(charges: StudentCharge[], paid: Map<number, number>): DebtorRow[] {
   const rows: DebtorRow[] = []
   for (const charge of charges) {
     const alreadyPaid = paid.get(charge.student.id) ?? 0

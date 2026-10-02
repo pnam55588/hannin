@@ -9,16 +9,22 @@
   --color-navy: #0d1f3d;
   --color-navy-700: #16305c;
   --color-navy-500: #2c4a7c;
-  --color-navy-100: #e8ecf3;
+  --color-navy-100: #eaf0fa;
 
   --color-coral: #ff6b6b;
-  --color-coral-700: #e04f4f;
-  --color-coral-100: #ffe9e9;
+  --color-coral-700: #9f273d;
+  --color-coral-100: #ffe9ec;
+  --color-mint-tint: #ecf8f5;
+  --color-butter-tint: #fff8ea;
+  --color-lavender-tint: #f3f0ff;
+  --color-success-tint: #e7f5ef;
+  --color-success-ink: #17634f;
+  --color-sidebar: #fff5f7;
 
-  --color-ink: #101828;
-  --color-muted: #667085;
-  --color-line: #e4e7ec;
-  --color-canvas: #f6f7f9;
+  --color-ink: #0d1f3d;
+  --color-muted: #52637a;
+  --color-line: #e5eaf0;
+  --color-canvas: #fffdfc;
   --color-surface: #ffffff;
 
   --font-sans:
@@ -30,6 +36,17 @@ body {
   height: 100%;
 }
 
+html, body { max-width: 100%; overflow-x: clip; }
+
+.metric-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.table-viewport { max-width: 100%; overflow-x: auto; border: 1px solid var(--color-line); border-radius: 12px; }
+.action-accent { display: inline-flex; min-height: 44px; align-items: center; border-radius: 12px; padding: 0 16px; background: var(--color-coral); color: var(--color-navy); font-size: 14px; font-weight: 700; }
+.app-content { min-width: 0; width: 100%; max-width: 1440px; margin-inline: auto; padding: 16px; }
+.app-content > *, .app-content .grid > * { min-width: 0; }
+.brand-lockup { display: flex; justify-content: center; align-items: center; }
+@media (min-width: 768px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .app-content { padding: 24px; } }
+@media (min-width: 1024px) { .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .app-content { padding: 32px; } }
+
 body {
   background-color: var(--color-canvas);
   color: var(--color-ink);
@@ -37,8 +54,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* AD-14: navy giữ diện tích lớn, coral chỉ để nhấn. */
 :focus-visible {
-  outline: 2px solid var(--color-coral);
+  outline: 2px solid var(--color-navy);
   outline-offset: 2px;
 }

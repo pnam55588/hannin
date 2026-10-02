@@ -37,7 +37,7 @@ export function Field({
         min={min}
         max={max}
         step={step}
-        className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-navy"
+        className="min-h-11 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-navy"
       />
       {hint !== undefined && <span className="mt-1 block text-xs text-muted">{hint}</span>}
     </label>
@@ -64,7 +64,7 @@ export function SelectField({
         name={name}
         defaultValue={defaultValue}
         required={required}
-        className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-navy"
+        className="min-h-11 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-navy"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -97,7 +97,7 @@ export function TextareaField({
         rows={rows}
         defaultValue={defaultValue}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-navy"
+        className="min-h-11 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-navy"
       />
     </label>
   )
@@ -114,13 +114,13 @@ export function SubmitButton({
 }) {
   const styles =
     tone === 'coral'
-      ? 'bg-coral text-white hover:bg-coral-700'
+      ? 'bg-coral text-navy hover:bg-coral-100'
       : 'bg-navy text-white hover:bg-navy-700'
   return (
     <button
       type="submit"
       disabled={pending}
-      className={`rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${styles}`}
+      className={`min-h-11 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${styles}`}
     >
       {pending ? 'Đang lưu…' : children}
     </button>

@@ -7,9 +7,9 @@ paradigm: 'Modular monolith theo feature với lõi domain thuần'
 scope: 'Toàn bộ ứng dụng quản lý lớp học Haninn — 8 capability: tổng quan, học sinh, lịch học, điểm danh, học phí và thu nhập, nhận xét, báo cáo, công nợ'
 status: final
 created: '2026-09-23'
-updated: '2026-09-23'
+updated: '2026-09-30'
 binds: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6, CAP-7, CAP-8]
-sources: ['../../../specs/spec-hannin/SPEC.md']
+sources: ['../../../specs/spec-hannin/SPEC.md', '../../sprint-change-proposal-2026-09-26.md']
 companions: ['../../../specs/spec-hannin/brand.md', '../../../specs/spec-hannin/screen-inventory.md']
 ---
 
@@ -23,13 +23,16 @@ companions: ['../../../specs/spec-hannin/brand.md', '../../../specs/spec-hannin/
 graph TD
   PAGE["app/ — vỏ Next.js App Router"] --> UI["ui/ — React"]
   UI --> ACT["actions.ts — Server Actions"]
-  ACT --> DOM["domain/ — hàm thuần"]
+  PAGE --> PUB["public.ts — orchestration và API module"]
+  ACT --> PUB
+  PUB --> DATA["data/ — Drizzle"]
+  PUB --> DOM["domain/ — hàm thuần"]
   DATA["data/ — Drizzle"] --> DOM
   DATA --> DB[("Postgres")]
   DOM --> LIB["lib/ — định dạng, đồng hồ, kết nối"]
 ```
 
-Hướng phụ thuộc là luật, không phải gợi ý: `ui → actions → domain`, `data → domain`, và `domain` không phụ thuộc vào ai. Đường dẫn đầy đủ của một module là `src/modules/<miền>/…`. `lib/` chỉ chứa hạ tầng dùng chung — không phải chỗ lách để giấu luật nghiệp vụ.
+Hướng phụ thuộc là luật, không phải gợi ý: `ui → actions → public → data/domain`, `page → public`, `data → domain`, và `domain` không phụ thuộc vào ai. Đường dẫn đầy đủ của một module là `src/modules/<miền>/…`. `lib/` chỉ chứa hạ tầng dùng chung — không phải chỗ lách để giấu luật nghiệp vụ.
 
 ## Invariants & Rules
 
@@ -37,19 +40,19 @@ Hướng phụ thuộc là luật, không phải gợi ý: `ui → actions → d
 
 - **Binds:** all
 - **Prevents:** luật nghiệp vụ (tiền, lịch) rải vào React component và Server Action, không test được và mỗi màn tính một kiểu; và luật bị giấu vào `lib/` để né luật module
-- **Rule:** mỗi miền là `src/modules/<miền>/` gồm `public.ts`, `domain/`, `data/`, `ui/`, `actions.ts`. `domain/` chỉ chứa hàm thuần, cấm import React, Next.js, Drizzle và mọi thứ gây I/O. Hướng phụ thuộc `ui → actions → domain`, `data → domain`, `domain → ∅` không có ngoại lệ. `lib/` chỉ được chứa bốn thứ: định dạng, đồng hồ nghiệp vụ, xác thực, kết nối cơ sở dữ liệu — cấm đặt bất kỳ hàm nào đọc ghi dữ liệu nghiệp vụ ở đó.
+- **Rule:** mỗi miền là `src/modules/<miền>/` gồm `public.ts`, `domain/`, `data/`, `ui/`, `actions.ts`. `domain/` chỉ chứa hàm thuần, cấm import React, Next.js, Drizzle và mọi thứ gây I/O. Hướng phụ thuộc nội module là `ui → actions → public → data/domain`, `page → public`, `data → domain`, `domain → ∅`; `public.ts` là nơi orchestration đọc/ghi hợp pháp và `data/` là nơi duy nhất chạm Drizzle. `lib/` chỉ được chứa bốn thứ: định dạng, đồng hồ nghiệp vụ, xác thực, kết nối cơ sở dữ liệu — cấm đặt bất kỳ hàm nào đọc ghi dữ liệu nghiệp vụ ở đó.
 
 ### AD-2 — Mặt tiếp xúc công khai của module
 
 - **Binds:** all
 - **Prevents:** hai module cùng truy vấn một bảng theo hai luật khác nhau; và việc lách qua `public.ts` bằng cách tái xuất bảng, schema hay kiểu Drizzle để module khác tự viết truy vấn
-- **Rule:** module khác chỉ được import `<module>/public.ts`. Cấm import `domain/`, `data/`, `ui/` và `actions.ts` xuyên module. `public.ts` chỉ được xuất ba loại: kiểu dữ liệu thuần, hàm thuần, và hàm nghiệp vụ đọc nhận sẵn kết nối cơ sở dữ liệu. Cấm tái xuất đối tượng bảng, schema Drizzle và kiểu suy ra từ Drizzle. Bảng do module sở hữu tự khai trong `data/schema.ts` của nó, và mọi câu truy vấn trên bảng đó nằm trong chính module ấy.
+- **Rule:** module khác chỉ được import `<module>/public.ts`. Cấm import `domain/`, `data/`, `ui/` và `actions.ts` xuyên module. `public.ts` chỉ được xuất kiểu dữ liệu thuần, hàm thuần và hàm nghiệp vụ; cấm tái xuất đối tượng bảng, schema Drizzle và kiểu suy ra từ Drizzle. Khai báo bảng tập trung tại `src/lib/db/schema.ts` để khoá ngoại xuyên miền không tạo vòng import. Mỗi bảng có đúng một module sở hữu mọi phép ghi và projection đọc của bảng đó; module sở hữu chỉ số phải ghép các projection batch qua `public.ts` của module sở hữu bảng, cấm join trực tiếp bảng ngoại miền.
 
 ### AD-3 — Buổi học suy ra từ lịch có hiệu lực theo ngày [ADOPTED]
 
 - **Binds:** CAP-1, CAP-3, CAP-4, CAP-7
 - **Prevents:** hai nguồn sự thật cho câu "hôm nay có buổi nào"; việc sửa lịch viết lại quá khứ; bản ghi điểm danh mồ côi bị module này đếm còn module kia lọc bỏ; và ghi điểm danh cho một buổi không tồn tại
-- **Rule:** chỉ lưu quy tắc lịch của lớp (thứ trong tuần + giờ bắt đầu) và bản ghi điểm danh; không có bảng buổi. Quy tắc lịch có hiệu lực theo ngày: sửa lịch là thêm một mốc `effectiveFrom` mới, cấm sửa hoặc xoá mốc đã có. `classes/public.ts` xuất đúng một hàm sinh buổi `sessionsBetween(classId, from, to)`; mọi module khác lấy buổi từ đó, cấm tự suy. Khoá buổi là bộ ba `classId`, `date`, `startTime`. Ghi điểm danh **bắt buộc** kiểm buổi đó có trong `sessionsBetween` — buổi không tồn tại thì bị từ chối, nên buổi bù và ngày nghỉ lễ phải chờ bảng ngoại lệ ở mục Deferred. Khi đọc, bản ghi điểm danh không còn khớp buổi nào theo lịch hiện tại vẫn được **tính vào** tổng (hợp, không lọc) — đổi lịch không được làm biến mất dữ liệu đã ghi.
+- **Rule:** chỉ lưu quy tắc lịch của lớp (thứ trong tuần + giờ bắt đầu) và bản ghi điểm danh; không có bảng buổi. Quy tắc lịch có hiệu lực theo ngày: sửa lịch là thêm một mốc `effectiveFrom` mới, cấm sửa hoặc xoá mốc đã có. `classes/public.ts` xuất đúng một projection sinh buổi dạng `sessionsBetween({ classIds, intervals })`, đọc lịch một lần và trả kết quả toàn phần theo từng cặp lớp/khoảng; số truy vấn không tăng theo số lớp hay số khoảng. Hàm tiện ích cho một lớp chỉ được lọc dữ liệu projection đã tải, cấm tự query. Mọi module khác lấy buổi từ projection này, cấm tự suy. Khoá buổi là bộ ba `classId`, `date`, `startTime`. Ghi điểm danh **bắt buộc** kiểm buổi đó có trong projection — buổi không tồn tại thì bị từ chối, nên buổi bù và ngày nghỉ lễ phải chờ bảng ngoại lệ ở mục Deferred. Khi đọc, bản ghi điểm danh không còn khớp buổi nào theo lịch hiện tại vẫn được **tính vào** tổng (hợp, không lọc) — đổi lịch không được làm biến mất dữ liệu đã ghi.
 
 ### AD-4 — Tiền là số nguyên VND, và chỉ có một phép làm tròn được phép
 
@@ -61,7 +64,7 @@ Hướng phụ thuộc là luật, không phải gợi ý: `ui → actions → d
 
 - **Binds:** CAP-2, CAP-5, CAP-8
 - **Prevents:** sửa học phí hôm nay làm đổi số công nợ của các tháng đã qua; học sinh biến mất khỏi danh sách nợ vì thiếu mốc giá; hai cách chia tiền cho tháng vào giữa tháng; và mỗi nơi chia một kiểu
-- **Rule:** đơn giá và miễn giảm lưu thành các mốc hiệu lực theo ngày cho từng học sinh; ghi mốc mới là thêm dòng, cấm sửa hoặc xoá mốc đã có. Số phải thu của kỳ M là hàm thuần, và **mọi kỳ phải tra ra được một mốc** — không tra được thì giao diện hiện trạng thái lỗi rõ ràng, tuyệt đối không được trả về 0 hay bỏ học sinh khỏi danh sách. Học sinh có mặt suốt tháng thì số phải thu bằng đơn giá trừ miễn giảm. Tháng lệch — học sinh bắt đầu sau buổi đầu tiên của lớp trong tháng, hoặc nghỉ trước buổi cuối cùng của lớp trong tháng — thì số phải thu bằng đơn giá trừ miễn giảm, nhân với số buổi lớp đã diễn ra từ ngày bắt đầu (hoặc tới ngày nghỉ) đến hết tháng, chia cho tổng số buổi của lớp trong tháng đó; làm tròn nửa lên tới đồng và tính hoàn toàn bằng số nguyên. Tử số đếm **buổi lớp đã diễn ra, không đếm buổi học sinh có mặt** — điểm danh không bao giờ ảnh hưởng tới tiền. Mẫu số lấy từ chính `sessionsBetween` của AD-3, không khai tay. Không có bảng hoá đơn.
+- **Rule:** đơn giá và miễn giảm lưu thành các mốc hiệu lực theo ngày cho từng học sinh; ghi mốc mới là thêm dòng, cấm sửa hoặc xoá mốc đã có. Số phải thu của kỳ M là hàm thuần, và **mọi kỳ phải tra ra được một mốc** — không tra được thì giao diện hiện trạng thái lỗi rõ ràng, tuyệt đối không được trả về 0 hay bỏ học sinh khỏi danh sách. Học sinh có mặt suốt tháng thì số phải thu bằng đơn giá trừ miễn giảm. Tháng lệch — học sinh bắt đầu sau buổi đầu tiên của lớp trong tháng, hoặc nghỉ trước buổi cuối cùng của lớp trong tháng — thì số phải thu bằng đơn giá trừ miễn giảm, nhân với số buổi lớp đã diễn ra từ ngày bắt đầu (hoặc tới ngày nghỉ) đến hết tháng, chia cho tổng số buổi của lớp trong tháng đó; làm tròn nửa lên tới đồng và tính hoàn toàn bằng số nguyên. Tử số đếm **buổi lớp đã diễn ra, không đếm buổi học sinh có mặt** — điểm danh không bao giờ ảnh hưởng tới tiền. Mẫu số lấy từ projection batch `sessionsBetween` của AD-3, không khai tay và không query riêng từng lớp. Không có bảng hoá đơn.
 
 ### AD-6 — Sổ thu là nguồn duy nhất của "đã thu" [ADOPTED]
 
@@ -103,7 +106,7 @@ Hướng phụ thuộc là luật, không phải gợi ý: `ui → actions → d
 
 - **Binds:** CAP-1, CAP-5, CAP-7, CAP-8
 - **Prevents:** màn Tổng quan và màn Báo cáo cài hai lần cùng một con số rồi lệch nhau; file Excel tự tính lại; và việc "đúng một hàm" bị hiểu là chỉ trong phạm vi một capability
-- **Rule:** mỗi chỉ số — thu nhập, số phải thu, công nợ, số buổi, tỉ lệ đã điểm danh, và mọi chỉ số theo lớp hay theo học sinh — có đúng một hàm sở hữu, nằm trong `public.ts` của đúng một module, và mọi màn hình lẫn file Excel đều gọi hàm đó. Cấm viết truy vấn tính chỉ số thứ hai ở bất kỳ đâu, kể cả trong `dashboard` hay `reports`. Mốc so sánh của phần trăm và tử số, mẫu số của tỉ lệ điểm danh đều do hàm sở hữu quyết định và phải nêu trong tài liệu của hàm.
+- **Rule:** mỗi chỉ số — thu nhập, số phải thu, công nợ, số buổi, tỉ lệ đã điểm danh, và mọi chỉ số theo lớp hay theo học sinh — có đúng một hàm sở hữu, nằm trong `public.ts` của đúng một module, và mọi màn hình lẫn file Excel đều gọi hàm đó. Cấm viết truy vấn tính chỉ số thứ hai ở bất kỳ đâu, kể cả trong `dashboard` hay `reports`. Mốc so sánh của phần trăm và tử số, mẫu số của tỉ lệ điểm danh đều do hàm sở hữu quyết định và phải nêu trong tài liệu của hàm. Hàm sở hữu phải trả được chỉ số cho nhiều lớp trong một lời gọi theo AD-17; màn hình và báo cáo cấm lặp theo lớp rồi gọi hàm sở hữu cho từng lớp. Biến thể theo lô là cùng một quyền sở hữu công thức, không phải một bản sao của công thức.
 
 ### AD-13 — Một đồng hồ nghiệp vụ và một module định dạng
 
@@ -121,21 +124,27 @@ Hướng phụ thuộc là luật, không phải gợi ý: `ui → actions → d
 
 - **Binds:** all
 - **Prevents:** khác biệt hành vi giữa dev và prod; migration chạy trước khi mã tương thích lên; job sao lưu không có đường tồn tại hợp luật; và mất sổ thu mà không có bản phục hồi
-- **Rule:** dev và prod chạy Postgres cùng major version, cùng driver, dev dùng dữ liệu giả. Chuỗi kết nối dùng session pooler cổng 5432 của Supabase — cấm dùng transaction pooler cho đường ghi nhiều dòng, vì nó không hợp với prepared statement trong khi AD-3 cần transaction. Session pooler chỉ cho tổng cộng 15 client, còn Vercel chạy nhiều instance cùng lúc, nên **mỗi instance chỉ được mở đúng một kết nối**; để nhiều hơn thì vài instance là cạn kết nối và triệu chứng không phải là chậm mà là trang trả 500. Migration theo thứ tự mở rộng rồi thu hẹp: thêm cột và bảng trước, deploy mã, rồi mới bỏ thứ cũ; không tự động chạy ở prod. Job sao lưu là một route tên `/api/jobs/backup`, xác thực bằng một secret trong biến môi trường chứ không bằng phiên người dùng — đây là ngoại lệ được kể tên ở AD-10 và AD-11, không phải cơ chế xác thực thứ hai cho người dùng. Job đổ dữ liệu ra một bản sao nằm ngoài Supabase. Không ghi dữ liệu thật vào prod trước khi job này chạy được một lần và đã diễn tập phục hồi; cả hai điều kiện ghi vào runbook trong `docs/`. Secret chỉ nằm trong biến môi trường, kèm `.env.example` được commit.
+- **Rule:** dev và prod chạy Postgres cùng major version, cùng driver nhưng dùng database/project tách biệt; dev chỉ có dữ liệu giả và không được cấp production credential. Vercel Function phải chạy tại `hnd1` (Tokyo), cùng vùng địa lý với Supabase `ap-northeast-1`; cấu hình nằm trong `vercel.json` và là một phần của hợp đồng deploy. Chuỗi kết nối dùng session pooler cổng 5432 của Supabase; cấm đổi sang shared transaction pooler nếu chưa chứng minh được Postgres.js không gặp lỗi pipelining và các transaction tương tác vẫn đúng. Kết nối phải cưỡng chế TLS. Vì Vercel có thể chạy nhiều instance và ngân sách kết nối của pooler hữu hạn, **mỗi instance chỉ được mở đúng một kết nối**; tăng `max` phải kèm bằng chứng ngân sách kết nối còn đủ. Migration theo thứ tự mở rộng rồi thu hẹp: thêm cột và bảng trước, deploy mã, rồi mới bỏ thứ cũ; không tự động chạy ở prod. Job sao lưu là một route tên `/api/jobs/backup`, xác thực bằng một secret trong biến môi trường chứ không bằng phiên người dùng — đây là ngoại lệ được kể tên ở AD-10 và AD-11, không phải cơ chế xác thực thứ hai cho người dùng. Job ghi snapshot vào private object storage tách khỏi Postgres chính. Không ghi dữ liệu thật vào prod trước khi job trả 200, retention/giám sát/owner được ghi trong runbook, và một snapshot đã được khôi phục trên project tạm; secret chỉ nằm trong biến môi trường, kèm `.env.example` được commit.
 
 ### AD-16 — Vòng đời học sinh, và cấm xoá cứng dữ liệu tiền [ADOPTED]
 
 - **Binds:** CAP-2, CAP-3, CAP-4, CAP-5, CAP-7
 - **Prevents:** một bảng enrollment xuất hiện về sau; học sinh nghỉ bị xoá kéo theo mất sổ thu; trạng thái học sinh bị hiểu là trạng thái của lớp; và báo cáo theo lớp viết lại doanh thu quá khứ sau khi học sinh chuyển lớp
-- **Rule:** mỗi học sinh có đúng một lớp hiện tại, là khoá ngoại bắt buộc, không được null; cấm bảng enrollment và cấm quan hệ nhiều-nhiều giữa học sinh và lớp. Trạng thái học sinh là một tập giá trị đóng gồm chưa bắt đầu, đang học và đã nghỉ, đi kèm mốc hiệu lực theo ngày, và **độc lập** với việc học sinh đã có lớp hay chưa. Học sinh nghỉ học thì đặt trạng thái đã nghỉ kèm ngày nghỉ; **cấm xoá học sinh** và cấm xoá theo dây chuyền bản ghi điểm danh, mốc giá hay payment — công nợ cũ vẫn phải thu được. Bản ghi điểm danh và payment đều lưu `classId` tại thời điểm phát sinh; báo cáo theo lớp dùng giá trị lưu sẵn đó, không dùng lớp hiện tại của học sinh.
+- **Rule:** mỗi học sinh có đúng một lớp hiện tại, là khoá ngoại bắt buộc, không được null; cấm bảng enrollment và cấm quan hệ nhiều-nhiều giữa học sinh và lớp. Học sinh lưu hai mốc vòng đời: `startedOn` bắt buộc và `leftOn` có thể null; sau khi phát sinh dữ liệu tiền, cả hai mốc đều bất biến. Trạng thái chưa bắt đầu/đang học/đã nghỉ chỉ được suy ra từ hai mốc này với `businessToday()`, cấm lưu thêm cột trạng thái. “Hiện lại” học sinh đã nghỉ là xem qua bộ lọc trạng thái, không phải xoá `leftOn`; đường “Cho học lại” hiện có phải bỏ cho tới khi mô hình nhiều khoảng học được chốt. **Cấm xoá học sinh** và cấm xoá theo dây chuyền bản ghi điểm danh, mốc giá hay payment — công nợ cũ vẫn phải thu được. Bản ghi điểm danh và payment đều lưu `classId` tại thời điểm phát sinh; báo cáo theo lớp dùng giá trị lưu sẵn đó, không dùng lớp hiện tại của học sinh.
+
+### AD-17 — Đọc dữ liệu gốc một lần cho mỗi request [ADOPTED]
+
+- **Binds:** CAP-1, CAP-5, CAP-7, CAP-8
+- **Prevents:** mỗi màn hình đọc lại cùng một bảng theo vòng lặp; cùng một request tính lại cùng một chỉ số; và tối ưu hiệu năng bị đẩy sang lớp cache mà AD-7 cấm
+- **Rule:** request scope là đúng một lần render page, một Route Handler hoặc một Server Action. Mỗi consumer có đúng một server loader/orchestrator ở biên đó; component con nhận read model qua props và cấm tự đọc database. Loader lập read plan, gọi mỗi projection batch qua `public.ts` đúng một lần, rồi truyền projection thuần vào các hàm sở hữu chỉ số; hàm chỉ số cấm tự tải lại projection. Module chỉ số ghép projection, cấm join trực tiếp bảng ngoại miền theo AD-2. Dữ liệu phải batch theo mọi chiều fan-out đã biết — ít nhất nhiều lớp, nhiều học sinh và nhiều khoảng thời gian — nên Dashboard chỉ đọc payment một lần cho tháng hiện tại/tháng trước/năm hiện tại/năm trước. Batch nhận universe ID tường minh và trả đúng một kết quả cho mỗi ID; zero, không áp dụng, thiếu dữ liệu và lỗi là các trạng thái khác nhau, không được diễn giải từ việc thiếu hàng. Universe công nợ lấy từ nghĩa vụ của kỳ và vẫn giữ học sinh đã nghỉ còn nợ. Mỗi chỉ số chỉ tính một lần trong scope rồi truyền cho các phần cần dùng. Memoization chỉ sống trong scope được phép làm hàng rào chống gọi lặp, nhưng không thay read plan; React/Next cache xuyên request và mọi lưu kết quả vẫn bị AD-7 cấm.
 
 ## Consistency Conventions
 
 | Concern | Convention |
 | --- | --- |
 | Naming | Code và schema tiếng Anh, UI tiếng Việt. Bảng snake_case số nhiều, cột snake_case, kiểu và hàm camelCase. Một khái niệm chỉ có đúng một tên trong code. Glossary một-một: buổi = session, kỳ thu = billing period, công nợ = outstanding, học phí = tuition, miễn giảm = discount, điểm danh = attendance, nhận xét = comment, hạn đóng = due date, lớp = class, lịch học = schedule. Đoạn đường dẫn trong mã trùng tên module, còn nhãn tiếng Việt trên sidebar là bản dịch của cùng khái niệm: `dashboard` là Tổng quan, `students` là Học sinh, `classes` là Lịch học, `attendance` là Điểm danh, `tuition` là Học phí và Thu nhập, `comments` là Nhận xét, `reports` là Báo cáo. |
-| Data & formats | Khoá chính là số nguyên tự tăng. Ngày của buổi kiểu date, giờ bắt đầu kiểu time, thời điểm ghi nhận kiểu timestamptz; múi giờ nghiệp vụ cố định Asia/Ho_Chi_Minh. Khoảng ngày của một kỳ chỉ được lấy từ `periodBounds`, **cấm ghép chuỗi** dạng `${period}-31`: tháng 9 chỉ có 30 ngày nên cách ghép đó làm màn học phí trả 500, và lỗi chỉ hiện ra khi chạy thật chứ không hiện lúc build. Trạng thái điểm danh là tập giá trị đóng gồm có học và vắng. Trạng thái học sinh là tập giá trị đóng gồm chưa bắt đầu, đang học và đã nghỉ. Server Action trả về kết quả có cờ thành công và một thông điệp tiếng Việt hiển thị được cho người dùng. Dữ liệu seed và demo chỉ là dữ liệu giả. |
-| UI & nội dung | Tiếng Việt có dấu là ngôn ngữ duy nhất của sản phẩm, không có màn hình tiếng Anh. Thao tác thường dùng — điểm danh, thêm học sinh, ghi một khoản thu — phải xong trong một màn hình, cấm wizard nhiều bước, vì người dùng không phải dân kỹ thuật. Giọng điệu ấm áp, hướng tới phụ huynh; lời chào và nhãn lấy từ `brand.md`, tagline `LEARN · GROW · SUCCEED` chỉ dùng ở màn đăng nhập và khu vực thương hiệu, không rắc vào bảng dữ liệu. |
+| Data & formats | Khoá chính là số nguyên tự tăng. Ngày của buổi kiểu date, giờ bắt đầu kiểu time, thời điểm ghi nhận kiểu timestamptz; múi giờ nghiệp vụ cố định Asia/Ho_Chi_Minh. Khoảng ngày của một kỳ chỉ được lấy từ `periodBounds`, **cấm nối giá trị kỳ với chuỗi `-31`**: tháng 9 chỉ có 30 ngày nên cách ghép đó làm màn học phí trả 500, và lỗi chỉ hiện ra khi chạy thật chứ không hiện lúc build. Trạng thái điểm danh là tập giá trị đóng gồm có học và vắng. Trạng thái học sinh là tập giá trị đóng gồm chưa bắt đầu, đang học và đã nghỉ. Server Action trả về kết quả có cờ thành công và một thông điệp tiếng Việt hiển thị được cho người dùng. Dữ liệu seed và demo chỉ là dữ liệu giả. |
+| UI & nội dung | Tiếng Việt có dấu là ngôn ngữ duy nhất của sản phẩm, không có màn hình tiếng Anh. Thao tác thường dùng — điểm danh, thêm học sinh, ghi một khoản thu — phải xong trong một màn hình, cấm wizard nhiều bước, vì người dùng không phải dân kỹ thuật. Giọng điệu ấm áp, hướng tới phụ huynh; lời chào và nhãn lấy từ `brand.md`, tagline `LEARN · GROW · SUCCEED` chỉ dùng ở màn đăng nhập và khu vực thương hiệu, không rắc vào bảng dữ liệu. Breakpoint khai tập trung: mobile `<768`, tablet `768–1023`, desktop `≥1024`; feature cấm tự đặt media query khác. Toàn app dùng chung `AppShell`, `PageHeader`, `MetricGrid`, `FormGrid`, `TableViewport`, `ActionBar`; `MetricGrid` lần lượt 1/2/4 cột. Mọi chức năng phải dùng được tại 360×800, 768×1024, 1024×768 và 1536×1024. Cấm cuộn ngang toàn trang; bảng rộng chỉ được cuộn trong `TableViewport`. |
 | State & cross-cutting | Không giữ state dữ liệu máy chủ ở client; sau mutation gọi `revalidatePath`. TypeScript bật chế độ nghiêm ngặt và cấm `any` ngầm định; kiểu ở biên do schema suy ra chứ không khai tay hai lần. Lỗi được ghi log kèm mã lỗi. Cấu hình chỉ qua biến môi trường. Mọi thao tác ghi nhiều bản ghi trong một lượt — điểm danh cả lớp, ghi một khoản thu kèm điều chỉnh — nằm trong một transaction, và driver phải là loại hỗ trợ transaction tương tác. |
 
 ## Stack
@@ -160,9 +169,10 @@ Hướng phụ thuộc là luật, không phải gợi ý: `ui → actions → d
 | ESLint | 10.11.0 kèm `eslint-config-next` 16.3.5 | đã xác minh trên registry; hạ cùng nhịp với Next.js vì cùng lý do chính sách 24 giờ |
 | tsx | 4.23.15 | đã xác minh trên registry; dùng chạy script migration và seed |
 | Vercel | nền tảng triển khai | múi giờ mặc định của runtime **không còn là rủi ro**: AD-13 tính ngày nghiệp vụ tường minh theo `Asia/Ho_Chi_Minh` và database để UTC, nên không mã nào phụ thuộc múi giờ của máy chạy |
+| Vercel Function region | mục tiêu `hnd1` (Tokyo) trong `vercel.json` | mã region và khoá project-level `regions` đã xác minh qua tài liệu Vercel ngày 2026-09-30; triển khai P-1 và kiểm chứng production vẫn đang chờ Dev, nên trạng thái repo hiện tại chưa tuân AD-15 |
 | shadcn/ui | không dùng | **đã bỏ**: không phục vụ AD nào, và Tailwind 4 đủ cho quy mô này |
 
-Khác với lần soạn đầu, các phiên bản ở bảng này **đã được xác minh thật** bằng truy vấn registry ngày 2026-09-23, và được ghim chính xác kèm lockfile trong repo. Hai điều để ngỏ ở bản trước đã kiểm xong khi có project thật: major Postgres của Supabase là **17.6**, và múi giờ runtime không ảnh hưởng vì AD-13 cố định múi giờ nghiệp vụ. Ứng dụng đã chạy thật ở production; phần kiểm chứng ghi trong `docs/van-hanh-va-khoi-phuc.md`.
+Các phiên bản trong bảng là bản đang được ghim trong `package.json` và lockfile, đã đối chiếu lại với repo ngày 2026-09-30; chúng không tuyên bố là bản mới nhất. Việc nâng dependency nằm ngoài thay đổi này. Major Postgres của Supabase là **17.6**, và múi giờ runtime không ảnh hưởng vì AD-13 cố định múi giờ nghiệp vụ. Ứng dụng đã chạy thật ở production; phần kiểm chứng ghi trong `docs/van-hanh-va-khoi-phuc.md`.
 
 ## Structural Seed
 
@@ -173,8 +183,8 @@ graph LR
   G["GitHub nhánh main"] -->|deploy| V
   C["Vercel Cron"] -->|secret trong env| J["/api/jobs/backup"]
   J --> N
-  J --> S["Bản sao lưu ngoài Supabase"]
-  D["Dev: trỏ thẳng vào project Supabase khi máy chưa có Postgres cục bộ"] -.->|cùng major và cùng driver| N
+  J --> S["Private object storage — cấu hình và restore gate theo AD-15"]
+  D["Dev: Postgres 17 tách biệt, chỉ dữ liệu giả"] -.->|cùng major và cùng driver| DBDEV[("Dev database")]
 ```
 
 ```text
@@ -216,8 +226,8 @@ erDiagram
   STUDENT {
     int id
     int class_id
-    text status
-    date status_from
+    date started_on
+    date left_on
   }
   PAYMENT {
     int student_id
@@ -234,14 +244,14 @@ Không có thực thể buổi và không có thực thể hoá đơn — đó l
 
 | Capability / Area | Lives in | Governed by |
 | --- | --- | --- |
-| CAP-1 Tổng quan | `modules/dashboard` gọi chỉ số qua `public.ts` của module khác | AD-7, AD-8, AD-12, AD-13 |
+| CAP-1 Tổng quan | `modules/dashboard` gọi chỉ số qua `public.ts` của module khác | AD-7, AD-8, AD-12, AD-13, AD-17 |
 | CAP-2 Quản lý học sinh | `modules/students` | AD-1, AD-2, AD-5, AD-9, AD-16 |
 | CAP-3 Lịch học | `modules/classes` — nguồn duy nhất của buổi | AD-3 |
 | CAP-4 Điểm danh | `modules/attendance` | AD-3, AD-11 |
-| CAP-5 Học phí và thu nhập | `modules/tuition` + `modules/payments` (màn `tuition`) | AD-4, AD-5, AD-6, AD-8, AD-9 |
+| CAP-5 Học phí và thu nhập | `modules/tuition` + `modules/payments` (màn `tuition`) | AD-4, AD-5, AD-6, AD-8, AD-9, AD-17 |
 | CAP-6 Nhận xét | `modules/comments` | AD-2, AD-13 |
-| CAP-7 Báo cáo | `modules/reports` | AD-8, AD-12 |
-| CAP-8 Công nợ học phí | `modules/payments` + `modules/tuition` (màn `tuition`) | AD-5, AD-6, AD-9, AD-12 |
+| CAP-7 Báo cáo | `modules/reports` | AD-8, AD-12, AD-17 |
+| CAP-8 Công nợ học phí | `modules/payments` + `modules/tuition` (màn `tuition`) | AD-5, AD-6, AD-9, AD-12, AD-17 |
 | Xác thực và tài khoản | `lib/auth` + `app/account` | AD-10 |
 | Triển khai và vận hành | Vercel + Supabase + job sao lưu | AD-13, AD-15 |
 
@@ -254,8 +264,8 @@ Không có thực thể buổi và không có thực thể hoá đơn — đó l
 - **Chia theo buổi cho mọi tháng.** Hiện chỉ tháng lệch mới chia; nếu khách muốn mọi tháng đều chia thì đó là thay đổi hợp đồng, không phải thay đổi kiến trúc.
 - **Chốt sổ và hoá đơn bất biến.** Nếu khách cần con số của tháng đã qua không bao giờ đổi, phải thêm bảng hoá đơn — khi đó AD-5 phải được thay bằng AD mới.
 - **Chuyển lớp giữa tháng.** AD-16 lưu lớp tại thời điểm phát sinh nên báo cáo không sai, nhưng công thức chia học phí cho tháng chuyển lớp chưa được định nghĩa.
-- **Mobile và responsive.** Spec chốt desktop; bố cục hiện tại không ràng buộc điểm gãy.
+- **Bản build chạy local cho khách.** Chưa làm cho tới khi biết máy khách có Node 22 và Docker hay không, đồng thời chốt nguồn dữ liệu chuẩn và người chịu trách nhiệm đồng bộ. Bản local vẫn trỏ Supabase chỉ bỏ được một phần cold start; nó không thay thế region `hnd1` và việc gom truy vấn theo AD-17.
+- **Tái nhập học sau khi đã nghỉ.** Bộ lọc trạng thái đáp ứng việc xem lại học sinh đã nghỉ; nó không mở lại vòng đời. Nếu cần cho học lại, phải thay AD-16 bằng lịch sử nhiều khoảng học append-only và định nghĩa cách chia học phí qua các khoảng. Cho tới lúc đó cấm xoá `leftOn`.
+- **Đích và chính sách sao lưu production.** Route hiện nhắm bucket riêng tư `backups` của Supabase Storage lúc 00:00 giờ Việt Nam, nhưng job còn trả 503. Trước dữ liệu thật phải chốt trong runbook: storage bền vững tách khỏi Postgres chính, retention tối thiểu, tín hiệu báo lỗi, người chịu trách nhiệm và ngày diễn tập phục hồi; sau đó job phải trả 200 và một bản sao phải khôi phục được trên project tạm. Cho tới lúc đó cổng AD-15 vẫn đóng.
 - **Thông báo cho phụ huynh.** Là non-goal trong spec; nếu đổi ý thì đây là một hệ thống mới, không phải một màn hình mới.
-- **Số phiên bản cụ thể và lockfile.** Chốt ở lần khởi tạo dự án trên máy có mạng; phiên này không xác minh được, và một số mục trong cache cục bộ đã cũ.
-- **Múi giờ mặc định của Vercel và đầu ra `Intl` vi-VN.** AD-13 được viết để đúng bất kể hai mặc định này, nhưng vẫn phải kiểm khi khởi tạo.
 - **Nhiều người dùng và phân quyền.** Spec chốt một tài khoản; nếu đổi, AD-10 phải được thay.

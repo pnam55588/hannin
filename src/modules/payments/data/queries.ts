@@ -87,3 +87,8 @@ export async function selectIncomeTotal(from: string, to: string): Promise<numbe
     .where(and(gte(payments.paidOn, from), lte(payments.paidOn, to)))
   return Number(row?.total ?? 0)
 }
+
+export async function selectIncomeRows(from: string, to: string): Promise<{ paidOn: string; amount: number }[]> {
+  return db.select({ paidOn: payments.paidOn, amount: payments.amount }).from(payments)
+    .where(and(gte(payments.paidOn, from), lte(payments.paidOn, to)))
+}

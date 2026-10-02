@@ -43,8 +43,7 @@ export default async function ReportsPage({
       ? params.toPeriod
       : period
 
-  const summary = await tuitionApi.billingSummary(period)
-  const debtors = await tuitionApi.debtorsForPeriod(period)
+  const { summary, debtors } = await tuitionApi.billingForPeriod(period)
 
   return (
     <>

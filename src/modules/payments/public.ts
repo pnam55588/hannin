@@ -9,7 +9,7 @@
  * "đã thu của kỳ" là chuyện khác và thuộc module học phí.
  */
 
-import { periodBounds } from '@/lib/clock'
+import { periodBounds, shiftPeriod } from '@/lib/clock'
 import { incomeBetween as incomeBetweenRows, type PaymentRow } from '@/modules/payments/domain/ledger'
 import { getStudent } from '@/modules/students/public'
 import * as queries from '@/modules/payments/data/queries'
@@ -98,6 +98,24 @@ export async function incomeBetween(from: string, to: string): Promise<number> {
 export async function incomeInPeriod(period: string): Promise<number> {
   const { from, to } = periodBounds(period)
   return incomeBetween(from, to)
+}
+
+/** CAP-1: bốn tổng tiền theo ngày thu, đọc một lần cho mốc tháng/năm liền trước. */
+export async function incomeComparisons(today: string): Promise<{
+  month: number; previousMonth: number; year: number; previousYear: number
+}> {
+  const period = today.slice(0, 7)
+  const previousPeriod = shiftPeriod(period, -1)
+  const year = Number(today.slice(0, 4))
+  const rows = await queries.selectIncomeRows(`${year - 1}-01-01`, today)
+  const result = { month: 0, previousMonth: 0, year: 0, previousYear: 0 }
+  for (const row of rows) {
+    if (row.paidOn.startsWith(period)) result.month += row.amount
+    if (row.paidOn.startsWith(previousPeriod)) result.previousMonth += row.amount
+    if (row.paidOn.startsWith(String(year))) result.year += row.amount
+    if (row.paidOn.startsWith(String(year - 1))) result.previousYear += row.amount
+  }
+  return result
 }
 
 /** Dùng cho kiểm thử và cho báo cáo trộn nhiều kỳ. */

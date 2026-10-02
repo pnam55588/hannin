@@ -6,7 +6,6 @@ import { businessToday } from '@/lib/clock'
 import {
   createStudentAction,
   endStudentAction,
-  reopenStudentAction,
   updateStudentAction,
   type ActionState,
 } from '@/modules/students/actions'
@@ -80,7 +79,9 @@ export function StudentEditForm({
         options={classes.map((klass) => ({ value: String(klass.id), label: klass.name }))}
       />
       <Field label="Bắt đầu học từ" name="startedOn" type="date" defaultValue={student.startedOn} required />
-      <Field label="Ngày nghỉ" name="leftOn" type="date" defaultValue={student.leftOn ?? ''} />
+      {student.leftOn === null
+        ? <Field label="Ngày nghỉ" name="leftOn" type="date" />
+        : <><input type="hidden" name="leftOn" value={student.leftOn} /><p className="text-sm text-muted">Ngày nghỉ đã ghi: {student.leftOn}</p></>}
       <FormStatus error={state.error} />
       <SubmitButton pending={pending}>Lưu thay đổi</SubmitButton>
     </form>
@@ -90,18 +91,15 @@ export function StudentEditForm({
 /** AD-16: kết thúc học là ghi ngày nghỉ — không có nút xoá học sinh. */
 export function EndStudentForm({ studentId, leftOn }: { studentId: number; leftOn: string | null }) {
   const [state, action, pending] = useActionState(endStudentAction, empty)
-  const [reopenState, reopenAction, reopenPending] = useActionState(reopenStudentAction, empty)
 
   if (leftOn !== null) {
     return (
-      <form action={reopenAction} className="space-y-3">
-        <input type="hidden" name="id" value={studentId} />
+      <div className="space-y-3">
         <p className="text-sm text-muted">
           Học sinh đã nghỉ từ {leftOn}. Dữ liệu học phí và điểm danh của các tháng cũ vẫn giữ nguyên.
         </p>
-        <FormStatus error={reopenState.error} />
-        <SubmitButton pending={reopenPending}>Cho học lại</SubmitButton>
-      </form>
+        <p className="text-sm text-muted">Có thể xem hồ sơ trong bộ lọc “Đã nghỉ” ở danh sách Học sinh.</p>
+      </div>
     )
   }
 

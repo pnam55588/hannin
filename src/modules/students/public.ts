@@ -19,6 +19,7 @@ import * as queries from '@/modules/students/data/queries'
  * sao của cùng một luật là cách chắc chắn nhất để hai màn hình lệch nhau.
  */
 export { isEnrolledInPeriod }
+export type { StudentStatus }
 
 export type StudentView = {
   id: number
@@ -87,7 +88,7 @@ export async function updateStudent(input: {
   })
 }
 
-/** Ghi hoặc xoá ngày nghỉ. Không có xoá cứng (AD-16). */
-export async function setStudentLeftOn(id: number, leftOn: string | null): Promise<void> {
+/** Ghi ngày nghỉ; không xóa ngày đã ghi (AD-16). */
+export async function setStudentLeftOn(id: number, leftOn: string): Promise<void> {
   await queries.setLeftOn(id, leftOn)
 }

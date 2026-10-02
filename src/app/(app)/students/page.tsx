@@ -4,31 +4,27 @@ import { formatDate } from '@/lib/format'
 import * as classesApi from '@/modules/classes/public'
 import * as studentsApi from '@/modules/students/public'
 import { StudentForm } from '@/modules/students/ui/student-forms'
+import { filterStudentList, type ListStatus } from './filter'
 
 export const dynamic = 'force-dynamic'
 
 export default async function StudentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; classId?: string }>
+  searchParams: Promise<{ q?: string; classId?: string; status?: string }>
 }) {
   const params = await searchParams
-  const query = (params.q ?? '').trim().toLowerCase()
+  const query = params.q ?? ''
   const classFilter = params.classId === undefined ? undefined : Number(params.classId)
+  const status: ListStatus = params.status === 'left' || params.status === 'not_started' || params.status === 'all' ? params.status : 'active'
 
   const [roster, classList] = await Promise.all([
     studentsApi.listStudents(classFilter === undefined ? {} : { classId: classFilter }),
     classesApi.listClasses(),
   ])
 
-  const filtered =
-    query === ''
-      ? roster
-      : roster.filter(
-          (student) =>
-            student.fullName.toLowerCase().includes(query) ||
-            (student.phone ?? '').includes(query),
-        )
+  const filtered = filterStudentList(roster, status, query)
+  const hasCustomFilter = query.trim() !== '' || params.classId !== undefined || status !== 'active'
 
   return (
     <>
@@ -37,21 +33,21 @@ export default async function StudentsPage({
         subtitle={`${roster.length} hồ sơ, trong đó ${roster.filter((s) => s.status === 'active').length} đang học`}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <Card
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+        <Card className="min-w-0"
           title="Danh sách"
           actions={
-            <form method="get" className="flex items-center gap-2">
+            <form method="get" className="flex flex-wrap items-center gap-2">
               <input
                 name="q"
                 defaultValue={params.q ?? ''}
                 placeholder="Tìm theo tên hoặc số điện thoại"
-                className="w-56 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm"
+                className="min-h-11 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 text-sm"
               />
               <select
                 name="classId"
                 defaultValue={params.classId ?? ''}
-                className="rounded-lg border border-line bg-surface px-2 py-1.5 text-sm"
+                className="min-h-11 rounded-lg border border-line bg-surface px-2 text-sm"
               >
                 <option value="">Tất cả lớp</option>
                 {classList.map((klass) => (
@@ -60,9 +56,14 @@ export default async function StudentsPage({
                   </option>
                 ))}
               </select>
+              <select name="status" aria-label="Trạng thái học sinh" defaultValue={status}
+                className="min-h-11 rounded-lg border border-line bg-surface px-2 text-sm">
+                <option value="active">Đang học</option><option value="not_started">Chưa bắt đầu</option>
+                <option value="left">Đã nghỉ</option><option value="all">Tất cả</option>
+              </select>
               <button
                 type="submit"
-                className="rounded-lg bg-navy px-3 py-1.5 text-sm font-semibold text-white"
+                className="min-h-11 rounded-lg bg-navy px-4 text-sm font-semibold text-white"
               >
                 Lọc
               </button>
@@ -71,7 +72,7 @@ export default async function StudentsPage({
         >
           <Table
             head={['Học sinh', 'Lớp', 'Điện thoại', 'Bắt đầu', 'Trạng thái', '']}
-            empty="Không tìm thấy học sinh nào."
+            empty={hasCustomFilter ? 'Không có học sinh nào khớp bộ lọc này.' : 'Chưa có học sinh đang học.'}
           >
             {filtered.map((student) => (
               <Row key={student.id}>
@@ -103,15 +104,18 @@ export default async function StudentsPage({
               </Row>
             ))}
           </Table>
+          {filtered.length === 0 && <Link href={hasCustomFilter ? '/students' : '#them-hoc-sinh'} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-coral-700 hover:underline">
+            {hasCustomFilter ? 'Xóa bộ lọc' : 'Thêm học sinh'}
+          </Link>}
         </Card>
 
-        <Card title="Thêm học sinh" hint="Bắt đầu học từ ngày nào thì chia học phí từ ngày đó">
+        <div id="them-hoc-sinh" className="min-w-0"><Card title="Thêm học sinh" hint="Bắt đầu học từ ngày nào thì chia học phí từ ngày đó">
           {classList.length === 0 ? (
             <Empty>Chưa có lớp nào. Tạo lớp ở mục Lịch học trước.</Empty>
           ) : (
             <StudentForm classes={classList} />
           )}
-        </Card>
+        </Card></div>
       </div>
     </>
   )

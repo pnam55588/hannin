@@ -1,0 +1,13 @@
+.secrets/
+.agents/
+_bmad/
+_bmad-output/
+.uv-cache/
+.npm-cache/
+.pnpm-store/
+.edge-capture/
+.env
+.env.*
+node_modules/
+.next/
+coverage/

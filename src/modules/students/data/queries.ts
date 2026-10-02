@@ -63,6 +63,6 @@ export async function updateStudentRow(
  * AD-16: KHÔNG có xoá cứng học sinh. Kết thúc học là ghi ngày nghỉ, nhờ vậy
  * học phí và điểm danh của các tháng cũ vẫn tra được.
  */
-export async function setLeftOn(id: number, leftOn: string | null): Promise<void> {
+export async function setLeftOn(id: number, leftOn: string): Promise<void> {
   await db.update(students).set({ leftOn }).where(eq(students.id, id))
 }

@@ -14,6 +14,17 @@ Haninn là ứng dụng web dành cho chủ lớp để quản lý học sinh, l
 | [Kiến trúc](_bmad-output/planning-artifacts/architecture/architecture-hannin-2026-09-23/ARCHITECTURE-SPINE.md) | Người phát triển: cấu trúc và quyết định kỹ thuật. |
 | [Quy tắc cho AI agent](AGENTS.md) | Agent làm việc trong repository. |
 
+### Tài liệu tải về
+
+| Tài liệu | Markdown | Word |
+|---|---|---|
+| Cài đặt trên máy mới | [Đọc](docs/cai-dat.md) | [Tải .docx](docs/cai-dat.docx) |
+| Hướng dẫn sử dụng | [Đọc](docs/huong-dan-su-dung.md) | [Tải .docx](docs/huong-dan-su-dung.docx) |
+| Vận hành và khôi phục | [Đọc](docs/van-hanh-va-khoi-phuc.md) | [Tải .docx](docs/van-hanh-va-khoi-phuc.docx) |
+| Kiểm tra bí mật trước khi public | [Đọc](docs/kiem-tra-bi-mat-truoc-public.md) | [Tải .docx](docs/kiem-tra-bi-mat-truoc-public.docx) |
+
+Các bản Word được chuyển từ tài liệu Markdown để thuận tiện tải về, chỉnh sửa và in. Khi cập nhật nội dung Markdown, cần tạo lại bản Word tương ứng.
+
 ## Chức năng
 
 - **Tổng quan:** xem các chỉ số và thông tin phục vụ quản lý lớp.
